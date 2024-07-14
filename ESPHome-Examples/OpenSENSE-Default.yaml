@@ -1,0 +1,75 @@
+# Change below substitutions if you want to edit
+# device host-name and sensor names
+substitutions:
+  hostname: livingroom
+  sensorname: Living room
+  wifiname: replace-with-your-wifi-name
+  wifipass: replace-with-wifi-password
+  otapass: replace-with-ota-password
+  encryptionkey: "l4DWPnRDq6JBgvlYzFpUAmFZovolbnicD3hi/+X8ohc=" # <-- Please change this (https://esphome.io/components/api.html)
+
+# -- You normally should not have to change any of the parameters below.
+# -- But it can be fun to play around with them if you understand what they mean! :)
+# -- The documentation can be fount at https://esphome.io/
+esphome:
+  name: opensense-$hostname
+  platform: esp32
+  board: esp32-c3-devkitm-1
+  platformio_options:
+    board_build.f_cpu: 80000000L
+
+wifi:
+  use_address: opensense-$hostname.local
+  ssid: "$wifiname" # <
+  password: "$wifipass"
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "OpenSENSE ${hostname} WiFi"
+
+captive_portal:
+
+ota:
+  password: "$otapass"
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "$encryptionkey"
+
+  on_client_connected:
+    - delay: 100ms
+    - component.update: bme280_sensor
+    - component.update: ltr390_sensor
+    - delay: 1s # Immediately after sending new values, wait 1s and go to sleep
+    - deep_sleep.enter:
+        sleep_duration: 1min  # Leave the board in sleep mode for longer periods of time to prevent heat build up.
+                              # If ESP32 is constantly on, it will generate heat that over time can affect temperature reading
+i2c:
+  sda: 7 # Do not change this or sensors will fail to work
+  scl: 4 # Do not change this or sensors will fail to work
+  # scan: true
+  scan: false
+  id: bus_a
+
+sensor:
+  - platform: bme280
+    id: bme280_sensor
+    temperature:
+      name: "$sensorname Temperature"
+      oversampling: 16x
+    pressure:
+      name: "$sensorname Pressure"
+    humidity:
+      name: "$sensorname Humidity"
+    address: 0x77
+
+  - platform: ltr390
+    id: ltr390_sensor
+    uv:
+      name: "$sensorname UV Index"
+    light:
+      name: "$sensorname Light"
+
+deep_sleep:
+  id: deep_sleep_1
